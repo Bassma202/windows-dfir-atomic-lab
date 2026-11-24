@@ -1,0 +1,30 @@
+title: Suspicious PowerShell Web Request & Memory Execution (Event ID 4104)
+id: f7299a38-5182-411a-bc04-89104081c991
+status: test
+description: Detects PowerShell Script Block Logging (Event ID 4104) containing web client download cradles and in-memory execution (IEX).
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+author: Bassma Alaoui Sossey
+date: 2026-11-20
+logsource:
+    service: powershell
+    product: windows
+detection:
+    selection:
+        EventID: 4104
+        ScriptBlockText|contains:
+            - 'Net.WebClient'
+            - 'DownloadString'
+            - 'DownloadFile'
+            - 'Invoke-WebRequest'
+            - 'iwr '
+            - 'irm '
+        ScriptBlockText|contains|all:
+            - 'Invoke-Expression'
+    condition: selection
+falsepositives:
+    - Automated deployment scripts (Chef, Puppet, SCCM) in administrative environments.
+level: high
+tags:
+    - attack.execution
+    - attack.t1059.001

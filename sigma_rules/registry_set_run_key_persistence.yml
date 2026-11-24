@@ -1,0 +1,23 @@
+title: Persistence via Windows Registry Run Keys
+id: c4e1837a-4299-4c8a-b941-89314981d77a
+status: test
+description: Detects modifications to the Windows CurrentVersion Run and RunOnce registry keys commonly used by malware for persistence across reboots.
+references:
+    - https://attack.mitre.org/techniques/T1547/001/
+author: Bassma Alaoui Sossey
+date: 2026-11-20
+logsource:
+    category: registry_set
+    product: windows
+detection:
+    selection:
+        TargetObject|contains:
+            - '\Software\Microsoft\Windows\CurrentVersion\Run\'
+            - '\Software\Microsoft\Windows\CurrentVersion\RunOnce\'
+    condition: selection
+falsepositives:
+    - Legitimate software installers configuring background services or tray icons.
+level: medium
+tags:
+    - attack.persistence
+    - attack.t1547.001

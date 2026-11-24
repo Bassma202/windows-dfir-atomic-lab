@@ -1,0 +1,28 @@
+title: Suspicious PowerShell Base64 Encoded Command Execution
+id: 4a3e218b-592b-426b-9442-1678d8a7c211
+status: test
+description: Detects the execution of PowerShell with encoded commands often used by adversaries to evade command-line inspection.
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+author: Bassma Alaoui Sossey
+date: 2026-11-20
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        CommandLine|contains:
+            - ' -enc '
+            - ' -encodedcommand '
+            - ' -e '
+            - ' -ec '
+    condition: selection
+falsepositives:
+    - Legitimate administrative scripts using encoded commands (uncommon in standard user contexts).
+level: high
+tags:
+    - attack.execution
+    - attack.t1059.001
