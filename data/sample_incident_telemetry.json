@@ -1,0 +1,30 @@
+[
+  {
+    "Timestamp": "2026-11-20T10:14:02Z",
+    "Hostname": "WIN11-VICTIM",
+    "User": "lab_user",
+    "EventID": 4688,
+    "Command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -enc JAB4ACAAPQAgACIAMQAiAA=="
+  },
+  {
+    "Timestamp": "2026-11-20T10:14:15Z",
+    "Hostname": "WIN11-VICTIM",
+    "User": "lab_user",
+    "EventID": 4688,
+    "Command": "systeminfo /fo csv"
+  },
+  {
+    "Timestamp": "2026-11-20T10:15:20Z",
+    "Hostname": "WIN11-VICTIM",
+    "User": "SYSTEM",
+    "EventID": 4688,
+    "Command": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 656 C:\\Temp\\lsass.dmp full"
+  },
+  {
+    "Timestamp": "2026-11-20T10:16:05Z",
+    "Hostname": "WIN11-VICTIM",
+    "User": "lab_user",
+    "EventID": 4657,
+    "Command": "reg.exe add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"SecurityUpdateMock\" /t REG_SZ /d \"C:\\Users\\Public\\payload.exe\" /f"
+  }
+]

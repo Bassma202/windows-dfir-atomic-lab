@@ -1,0 +1,41 @@
+<!--
+  Enterprise Sysmon Schema Configuration (v4.90)
+  Author: Bassma Alaoui Sossey
+  Optimized for MITRE ATT&CK Telemetry and Sigma Rule Ingestion
+-->
+<Sysmon schemaversion="4.90">
+  <HashAlgorithms>md5,sha256,imphash</HashAlgorithms>
+  <CheckRevocation/>
+  <EventFiltering>
+    <!-- Event ID 1: Process Creation with Command Line -->
+    <RuleGroup name="ProcessCreation" groupRelation="or">
+      <ProcessCreate onmatch="include">
+        <Image condition="image">powershell.exe</Image>
+        <Image condition="image">pwsh.exe</Image>
+        <Image condition="image">cmd.exe</Image>
+        <Image condition="image">rundll32.exe</Image>
+        <Image condition="image">reg.exe</Image>
+        <Image condition="image">certutil.exe</Image>
+        <Image condition="image">mshta.exe</Image>
+        <CommandLine condition="contains">MiniDump</CommandLine>
+        <CommandLine condition="contains">-enc</CommandLine>
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- Event ID 10: Process Access (Target: LSASS) -->
+    <RuleGroup name="ProcessAccessLSASS" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <TargetImage condition="is">C:\Windows\System32\lsass.exe</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- Event ID 13: Registry Value Set (Persistence) -->
+    <RuleGroup name="RegistryPersistence" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <TargetObject condition="contains">\CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">\CurrentVersion\RunOnce</TargetObject>
+        <TargetObject condition="contains">\Services\</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
