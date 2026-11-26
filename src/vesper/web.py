@@ -32,7 +32,7 @@ def create_app(repo_root: Path | None = None) -> FastAPI:
             "## Verified Artifact-Backed Findings",
         ]
         for f in case["verified_findings"]:
-            lines.append(f"- **{f['finding_id']} [{f['severity']}]** `{f['timestamp']}` — {f['title']} (`{f['host']}` / `{f['user']}`)")
+            lines.append(f"- **{f['finding_id']} [{f['severity']}]** `{f['normalized_utc_timestamp']}` — {f['title']} (`{f['host']}` / `{f['user']}` | `{f['source_classification']}` | sha256:`{f['artifact_sha256'][:12]}`)")
         lines.append("")
         lines.append("## Unconfirmed Analyst Hypotheses")
         for h in case["analyst_hypotheses"]:
@@ -45,7 +45,7 @@ def create_app(repo_root: Path | None = None) -> FastAPI:
         reg = case["regression_summary"]["metrics"]
         finding_rows = "".join(
             f"<tr><td><code>{f['finding_id']}</code></td><td><span class='sev'>{f['severity']}</span></td>"
-            f"<td>{f['timestamp']}</td><td>{f['title']}</td><td><code>{f['evidence_summary'][:72]}</code></td></tr>"
+            f"<td>{f['normalized_utc_timestamp']}</td><td>{f['title']}</td><td><code>{f['observations'][:72]}</code></td></tr>"
             for f in case["verified_findings"]
         )
         rule_rows = "".join(
