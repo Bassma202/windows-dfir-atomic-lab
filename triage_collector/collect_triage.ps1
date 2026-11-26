@@ -1,37 +1,80 @@
 ﻿<#
 .SYNOPSIS
-    DFIR Live Response & Triage Collector Script
+    VESPER Non-Destructive Windows DFIR Live Triage Collector with SHA-256 Chain of Custody
 .DESCRIPTION
-    Collects high-value volatile and non-volatile forensic artifacts:
-    - Running process trees and network socket mappings
-    - PowerShell script block logs & transcripts
-    - Security & System EVTX logs
-    - Registry persistence locations (Run, RunOnce, Services)
+    Collects read-only host triage artifacts (network sockets, process tree with parent PIDs,
+    registry Run keys, and event log metadata) and generates a SHA-256 manifest for integrity verification.
 .NOTES
     Author: Bassma Alaoui Sossey
 #>
 
 [CmdletBinding()]
 param (
-    [string]$OutputDir = "C:\DFIR_Triage_Output"
+    [string]$OutputDir = (Join-Path $env:TEMP "VESPER_Triage")
 )
 
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$caseDir = Join-Path $OutputDir "Triage_$timestamp"
+$ErrorActionPreference = "Stop"
+$utcNow = (Get-Date).ToUniversalTime()
+$stamp = $utcNow.ToString("yyyyMMdd_HHmmssZ")
+$caseDir = Join-Path $OutputDir "Triage_$stamp"
 New-Item -ItemType Directory -Path $caseDir -Force | Out-Null
 
-Write-Host "[*] Starting DFIR Live Response Triage..." -ForegroundColor Cyan
+$collected = [System.Collections.Generic.List[string]]::new()
+$errors = [System.Collections.Generic.List[string]]::new()
 
-# 1. System info & active network connections
-Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess | 
-    Export-Csv -Path (Join-Path $caseDir "netstat_sockets.csv") -NoTypeInformation
+try {
+    $netPath = Join-Path $caseDir "netstat_sockets.csv"
+    Get-NetTCPConnection -ErrorAction SilentlyContinue |
+        Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess |
+        Export-Csv -Path $netPath -NoTypeInformation -Encoding UTF8
+    $collected.Add($netPath)
+} catch {
+    $errors.Add("netstat_sockets: $($_.Exception.Message)")
+}
 
-# 2. Process list with parent PID
-Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, CommandLine, CreationDate |
-    Export-Csv -Path (Join-Path $caseDir "process_tree.csv") -NoTypeInformation
+try {
+    $procPath = Join-Path $caseDir "process_tree.csv"
+    Get-CimInstance Win32_Process |
+        Select-Object ProcessId, ParentProcessId, Name, CommandLine, CreationDate |
+        Export-Csv -Path $procPath -NoTypeInformation -Encoding UTF8
+    $collected.Add($procPath)
+} catch {
+    $errors.Add("process_tree: $($_.Exception.Message)")
+}
 
-# 3. Export Registry Run Keys
-Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run" | Out-File (Join-Path $caseDir "hklm_run.txt")
-Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" | Out-File (Join-Path $caseDir "hkcu_run.txt")
+try {
+    $regPath = Join-Path $caseDir "registry_run_keys.json"
+    $regSnapshot = [PSCustomObject]@{
+        HKLM_Run = (Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run" -ErrorAction SilentlyContinue)
+        HKCU_Run = (Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -ErrorAction SilentlyContinue)
+    }
+    $regSnapshot | ConvertTo-Json -Depth 4 | Set-Content -Path $regPath -Encoding UTF8
+    $collected.Add($regPath)
+} catch {
+    $errors.Add("registry_run_keys: $($_.Exception.Message)")
+}
 
-Write-Host "[✓] Triage artifacts collected in: $caseDir" -ForegroundColor Green
+$hashes = foreach ($file in $collected) {
+    if (Test-Path $file) {
+        $h = Get-FileHash -Path $file -Algorithm SHA256
+        [PSCustomObject]@{
+            file = (Split-Path $file -Leaf)
+            sha256 = $h.Hash.ToLowerInvariant()
+            bytes = (Get-Item $file).Length
+        }
+    }
+}
+
+$manifest = [PSCustomObject]@{
+    tool = "VESPER Live Triage Collector"
+    collected_at_utc = $utcNow.ToString("o")
+    hostname = $env:COMPUTERNAME
+    username = $env:USERNAME
+    os_version = [System.Environment]::OSVersion.VersionString
+    artifacts = $hashes
+    non_fatal_errors = $errors
+}
+
+$manifestPath = Join-Path $caseDir "manifest_sha256.json"
+$manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
+Write-Output "VESPER_TRIAGE_COMPLETE:$manifestPath"

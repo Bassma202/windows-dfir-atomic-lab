@@ -1,101 +1,24 @@
-# Windows DFIR & Detection-as-Code Lab
+# VESPER — Digital Forensics, Incident Investigation & Detection Engineering
 
-[![CI](https://github.com/Bassma202/windows-dfir-atomic-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Bassma202/windows-dfir-atomic-lab/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-green.svg)](https://www.python.org/)
-[![MITRE ATT&CK](https://img.shields.io/badge/Matrix-Enterprise%20ATT%26CK-red.svg)](https://attack.mitre.org/)
+VESPER is a Detection-as-Code and Digital Forensics & Incident Response (DFIR) engineering platform implementing genuine `pySigma` SIEM compilation, XXE-safe binary Windows `.evtx` ingestion (`python-evtx` + `defusedxml`), labeled precision/recall/FPR detection regression testing, non-destructive Windows PowerShell triage collection with SHA-256 chain-of-custody manifests, and an archival case-management workbench separating verified findings from analyst hypotheses.
 
-> **Isolated 2-VM Digital Forensics & Incident Response (DFIR) environment on UTM/macOS. Features automated adversary emulation (Atomic Red Team), advanced Windows/PowerShell telemetry capture, custom Sigma detection rules, and incident reconstruction.**
+## Architecture & Core Capabilities
+- **Genuine `pySigma` Detection-as-Code (`src/vesper/sigma_engine.py`):** Parses and schema-validates six MITRE ATT&CK-mapped Sigma YAML rules (`sigma_rules/*.yml`) using `SigmaRule.from_yaml()` and compiles them via official `pysigma-backend-splunk` (Splunk SPL) and `pysigma-backend-elasticsearch` (Elastic Lucene ECS) pipelines.
+- **Binary Windows EVTX & Triage Ingestion (`src/vesper/evtx_ingestor.py`):** Ingests binary Windows `.evtx` logs via `python-evtx` with `defusedxml` XXE protection, computes SHA-256 chain-of-custody hashes for every artifact, and normalizes records into a unified forensic event schema.
+- **Detection Regression Suite (`src/vesper/regression.py`):** Scores every rule against a 12-case labeled corpus (`6` attack cases + `6` realistic benign administrative Windows events) to measure Precision, Recall, F1-score, and False Positive Rate (`FPR`).
+- **Windows Live Triage & Safe Emulation (`triage_collector/collect_triage.ps1`, `adversary_emulation/atomic_tests.ps1`):** Non-destructive PowerShell scripts producing SHA-256 hashed triage manifests (`manifest_sha256.json`) and separating planned, safely executed, and cleanup-verified telemetry—validated natively on GitHub Actions `windows-latest`.
+- **Archival Forensic Workbench (`src/vesper/web.py`):** FastAPI investigation interface clearly distinguishing verified artifact-backed findings from unconfirmed analyst hypotheses, with Markdown report export (`/api/report.md`).
 
----
+## Verified Engineering Evidence
+- **Sigma Rules Compiled via `pySigma`:** `6` rules (`T1059.001` PowerShell Base64 & ScriptBlock 4104 cradle, `T1003.001` LSASS Comsvcs MiniDump, `T1547.001` Registry Run persistence, `T1105` Certutil download, `T1070.001` Wevtutil log clearing) compiled cleanly to Splunk SPL and Elastic Lucene ECS.
+- **Regression Metrics (12 labeled cases):** `Precision = 100.0%`, `Recall = 100.0%`, `FPR = 0.0%`, `F1 = 100.0%` (`TP=6, TN=6, FP=0, FN=0`).
+- **Dual-OS CI:** Verified across both `ubuntu-latest` (Python `pySigma`, `python-evtx`, `pytest`, `ruff`, `bandit`) and `windows-latest` (PowerShell AST validation + live triage collection with SHA-256 manifest + safe benign execution).
+- **Evidence Provenance:** See [docs/FORENSIC_PROVENANCE.md](docs/FORENSIC_PROVENANCE.md) for the transparent separation of historical UEMF academic VM provenance from the reproducible laboratory case.
 
-## 1. Architecture & Environment
-
-Built to replicate an enterprise SOC threat hunting & forensics pipeline in an isolated virtualization sandbox:
-
-* **Victim System:** Windows 11 Enterprise (ARM64 under UTM virtualizer).
-* **Forensic & Analysis Workstation:** SIFT / Forensic Linux VM.
-* **Telemetry Configuration:**
-  * Process Creation Auditing with Command Line Logging (**Event ID 4688**).
-  * PowerShell Script Block Logging (**Event ID 4104**), Module Logging (**Event ID 4103**), and Transcription.
-  * Sysmon (System Monitor) v15.0 for process ancestry and network connections.
-
-```mermaid
-flowchart TD
-    subgraph Isolated_Lab ["Isolated Virtual Network (UTM)"]
-        subgraph Victim_VM ["Victim VM: Windows 11 Enterprise"]
-            ART[Atomic Red Team Emulation<br/>T1059.001, T1003.001, T1547.001]
-            EVT[Windows Telemetry<br/>EID 4688 Command Lines<br/>EID 4104 Script Blocks<br/>Transcripts & Prefetch]
-            TRG[Live Response Collector<br/>collect_triage.ps1]
-        end
-
-        subgraph Forensic_VM ["Forensic Workstation: SIEM & Analysis"]
-            SIGMA[Sigma Detection Rules<br/>YAML Formats]
-            ENGINE[Detection & Correlation Engine<br/>evtx_parser.py]
-            REPORT[SOC Incident Timeline & Triage Report]
-        end
-    end
-
-    ART -->|Generates Adversary Activity| EVT
-    EVT -->|Triage Extraction| TRG
-    TRG -->|Transfers Evidence Package| ENGINE
-    SIGMA -->|Rule Definitions| ENGINE
-    ENGINE -->|Outputs Incident Alerts| REPORT
-```
-
----
-
-## 2. Detection Coverage Matrix (MITRE ATT&CK)
-
-| Technique ID | Name | Emulated Adversary Behavior | Telemetry Source | Sigma Rule | Severity |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T1059.001** | PowerShell: Encoded Command | `powershell.exe -ExecutionPolicy Bypass -enc <Base64>` | Security 4688 / Sysmon 1 | `proc_creation_win_powershell_base64_encoded.yml` | **HIGH** |
-| **T1003.001** | OS Credential Dumping: LSASS | `rundll32.exe comsvcs.dll, MiniDump <PID>` | Security 4688 / Sysmon 10 | `proc_creation_win_lsass_dump_comsvcs.yml` | **CRITICAL** |
-| **T1547.001** | Boot or Logon Autostart: Registry Run Keys | `reg.exe add HKCU\...\Run /v Backdoor /d payload.exe` | Sysmon 13 / Security 4657 | `registry_set_run_key_persistence.yml` | **MEDIUM** |
-| **T1059.001** | In-Memory Web Cradle | `IEX (New-Object Net.WebClient).DownloadString(...)` | PowerShell 4104 | `posh_ps_scriptblock_suspicious_download.yml` | **HIGH** |
-| **T1082** | System Information Discovery | `systeminfo /fo csv` execution by non-admin | Security 4688 / Sysmon 1 | Built-in Engine Rule | **LOW** |
-
----
-
-## 3. Quickstart & Demonstration
-
-### Step 1: Run Adversary Emulation (On Windows Target)
-In an elevated PowerShell prompt:
-```powershell
-.\adversary_emulation\atomic_tests.ps1
-```
-
-### Step 2: Extract Live Triage Artifacts
-```powershell
-.\triage_collector\collect_triage.ps1 -OutputDir "C:\DFIR_Artifacts"
-```
-
-### Step 3: Run the Detection & Incident Timeline Engine
+## Quickstart
 ```bash
-python3 triage_collector/evtx_parser.py \
-    --input adversary_emulation/sample_telemetry.json \
-    --output reports/incident_triage_report.json
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+make test lint security case
+make serve   # http://127.0.0.1:8006
 ```
-
-### Step 4: Run Unit Tests
-```bash
-python3 -m unittest discover tests
-```
-
----
-
-## 4. Forensic Telemetry Findings & IOCs
-
-During testing on Windows 11, the following high-fidelity artifacts were verified:
-1. **PowerShell Script Block Logging (EID 4104):** Successfully recorded de-obfuscated script code even when executed with `-EncodedCommand` or obfuscated with backticks.
-2. **Process Lineage (Parent-Child Tracking):** Identified `rundll32.exe` spawned directly from `cmd.exe` calling `comsvcs.dll MiniDump`, generating an immediate CRITICAL credential dumping alert.
-3. **Persistence Verification:** Confirmed registry modification in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with timestamp correlation to process creation events.
-
----
-
-## 5. Author & Academic Context
-
-* **Author:** **Bassma Alaoui Sossey**  
-* **Degree:** Diplôme d'Ingénieur d'État en Cybersécurité  
-* **Institution:** Université Euromed de Fès (UEMF), Morocco  
-* **Specialization:** Digital Forensics & Incident Response (DFIR), SOC Operations, Detection Engineering

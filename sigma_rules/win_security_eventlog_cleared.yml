@@ -1,0 +1,24 @@
+title: Windows Security or System Event Log Cleared via Wevtutil
+id: 9b23e401-7f12-4c99-a771-1188a5520914
+status: test
+description: Detects clearing of Windows Event Logs using wevtutil.exe cl, indicative of indicator removal on host.
+references:
+    - https://attack.mitre.org/techniques/T1070/001/
+author: Bassma Alaoui Sossey
+date: 2026-11-26
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        Image|endswith: '\wevtutil.exe'
+        CommandLine|contains:
+            - ' cl '
+            - ' clear-log '
+    condition: selection
+falsepositives:
+    - Rare automated log rotation scripts in legacy environments.
+level: critical
+tags:
+    - attack.defense_evasion
+    - attack.t1070.001
